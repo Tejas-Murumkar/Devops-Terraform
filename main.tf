@@ -2,7 +2,7 @@ provider "aws" {
 	region = "us-east-1"
 	profile = "Devops_Rushi"
 }
-# create a iam user and group 
+# Create a IAM User 
 resource "aws_iam_user""First"{
 	name = "Raj"
 }
@@ -19,10 +19,12 @@ resource "aws_iam_user""fourth"{
 	name = "Ali"
 }
 
+#Create A IAM Group 
 resource "aws_iam_group""friends"{
 	name = "College"
 }
 
+#Add Users to Group
 resource "aws_iam_user_group_membership""memberadd1"{
 	user = aws_iam_user.First.name
 	
@@ -40,7 +42,7 @@ resource "aws_iam_user_group_membership""memberadd2"{
 
 }
 
-# create a s3 bucket with private ACL
+# Create a S3 bucket with Private ACL
 
 resource "aws_s3_bucket" "bucket1" {
   bucket = "cap-buck-bucket"
@@ -59,7 +61,7 @@ resource "aws_s3_bucket_acl" "acl" {
    depends_on = [ aws_s3_bucket_ownership_controls.owner ]
 }
 
-# Create S3 bucket with public-read ACL 
+# Create S3 bucket with Public-read ACL 
 resource "aws_s3_bucket" "bucket2" {
   bucket = "cap-buck-bucket-1"
 }
@@ -87,6 +89,7 @@ resource "aws_s3_bucket_acl" "name" {
 	acl = "public-read"
 }
 
+#Create A VPC
 resource "aws_vpc" "vpc" {
     cidr_block = "10.0.0.0/16"
 
@@ -96,6 +99,7 @@ resource "aws_vpc" "vpc" {
     } 
 }
 
+#Create subnet
 resource "aws_subnet" "subnet1" {
   vpc_id = aws_vpc.vpc.id
   cidr_block = "10.0.1.0/24"
@@ -107,6 +111,7 @@ resource "aws_subnet" "subnet1" {
   }
 }
 
+#Create Internet gateway
 resource "aws_internet_gateway" "igw" {
     vpc_id = aws_vpc.vpc.id
     tags = {
@@ -115,7 +120,7 @@ resource "aws_internet_gateway" "igw" {
   
 }
 
-
+#Create Route Table
 resource "aws_route_table" "RT1" {
     vpc_id = aws_vpc.vpc.id
 
@@ -127,18 +132,19 @@ resource "aws_route_table" "RT1" {
   
 }
 
+#Associate Subnet with Route Table 
 resource "aws_route_table_association" "association" {
   subnet_id = aws_subnet.subnet1.id
   route_table_id = aws_route_table.RT1.id
 }
-# Launch the  on demand general purpose Instance 
 
+#Create A Security Group
 resource "aws_security_group" "ssh" {
   name = "allow_Ssh"
   description = "Allow SSH access"
   vpc_id = aws_vpc.vpc.id
 }
-
+#Add inbound rule in Security group
 resource "aws_vpc_security_group_ingress_rule" "inbound" {
   security_group_id = aws_security_group.ssh.id
   cidr_ipv4 = "0.0.0.0/0"
@@ -146,41 +152,20 @@ resource "aws_vpc_security_group_ingress_rule" "inbound" {
   ip_protocol = "tcp"
   to_port = 22
 }
-
+#Add outbound rule in Security group
 resource "aws_vpc_security_group_egress_rule" "outbound" {
   security_group_id = aws_security_group.ssh.id
   cidr_ipv4 = "0.0.0.0/0"
   ip_protocol = "-1"
 }
+
+#Creaet A Network Interface 
 resource "aws_network_interface" "network" {
   subnet_id = aws_subnet.subnet1.id
   private_ip = "10.0.1.100/24"
 }
 
-
-
-data "aws_key_pair" "key" {
-  key_name = "nat"
-  include_public_key = true 
-
-  filter {
-    name = "tag:nat_nv"
-    values = [ "N.virginia" ]
-  }
-}
-
-output "fingerprint" {
-  value = data.aws_key_pair.key.fingerprint
-}
-
-output "name" {
-  value = data.aws_key_pair.key.key_name
-}
-
-output "id" {
-  value = data.aws_key_pair.key.id
-}
-
+#Filter the AMI 
 data "aws_ami" "ami" {
     most_recent = true
     owners = [ "amazon" ]
@@ -191,10 +176,7 @@ data "aws_ami" "ami" {
     }
 }
 
-resource "aws_network_interface_sg_attachment" "sg2" {
-  security_group_id = aws_security_group.ssh.id
-  network_interface_id = aws_instance.instace.primary_network_interface_id
-}
+#Create A Instance 
 resource "aws_instance" "instace" {
   ami = data.aws_ami.ami.id
   instance_type = "t2.micro"
@@ -203,8 +185,10 @@ resource "aws_instance" "instace" {
     network_interface_id = aws_network_interface.network.id
     device_index = 0
   }
+}
 
-  credit_specification {
-    cpu_credits = "unlimited"
-  }
+#Attach the instance the security group
+resource "aws_network_interface_sg_attachment" "sg2" {
+  security_group_id = aws_security_group.ssh.id
+  network_interface_id = aws_instance.instace.primary_network_interface_id
 }
